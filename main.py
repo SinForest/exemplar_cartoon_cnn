@@ -73,17 +73,19 @@ def generate_data(path, max_side=128, crop_size=64, nb_samples=200, outpath=None
         for i in range(nb_samples):
             
             # rotate image
-            #rot = np.random.randint(-20, 20)
-            rot = -20
+            rot = np.random.randint(-20, 20)
             sample = rotate(img, rot, resize=False)
-            print(rot)
-            imshow(sample)
-            return
             
             # cropping random patch
             crop_y = np.random.randint(img.shape[0] - crop_size + 1)
             crop_x = np.random.randint(img.shape[1] - crop_size + 1)
-            sample = img[crop_y:crop_y+crop_size, crop_x:crop_x+crop_size, :]
+            sample = sample[crop_y:crop_y+crop_size, crop_x:crop_x+crop_size, :]
+
+            # flipping (maybe)
+            if np.random.choice([True, False]):
+                sample = np.fliplr(sample)
+            
+            
 
             
         
