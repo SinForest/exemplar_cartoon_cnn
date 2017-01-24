@@ -14,7 +14,6 @@ from skimage.io import imread, imshow
 from skimage.transform import resize, rotate
 from skimage.color import rgb2hsv, hsv2rgb
 
-from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers.advanced_activations import PReLU
@@ -23,7 +22,7 @@ from keras.utils import np_utils
 from keras import backend as K
 
 DEBUG = "data"
-np.random.seed(1338)
+#np.random.seed(1338) # for debugging
 
 def create_model(input_shape, nb_classes):
     model = Sequential()
@@ -145,8 +144,6 @@ def generate_data(path, max_side=192, crop_size=64, nb_samples=100, zoom_lower =
         plt.savefig("batches.png")
         return
 
-            
-        
 
 if __name__ == "__main__":
     
@@ -162,39 +159,3 @@ if __name__ == "__main__":
         
     if DEBUG == "data":
         generate_data("/home/cobalt/deepvis/project/toon/JPEGImages")
-
-def evaluate_data(path):
-    res = {"max_height": 0,
-           "max_width": 0,
-           "max_area": 0,
-           "max_box": (0,0),
-           "max_image": "",
-           "sum_height": [],
-           "sum_width": [],
-           "sum_area": [],
-          }
-    if path[-1] != "/":
-        path.append("/")
-         
-    for filename in os.listdir(path):
-        if filename[0] == ".":
-            continue
-        img = imread(path + filename)
-        res["sum_height"].append(img.shape[0])
-        if img.shape[0] > res["max_height"]:
-            res["max_height"] = img.shape[0]
-        res["sum_width"].append(img.shape[1])
-        if img.shape[1] > res["max_width"]:
-            res["max_width"] = img.shape[1]
-        res["sum_area"].append(img.shape[0]*img.shape[1])
-        if img.shape[0]*img.shape[1] > res["max_area"]:
-            res["max_area"] = img.shape[0]*img.shape[1]
-            res["max_box"] = (img.shape[0], img.shape[1])
-            res["max_image"] = filename
-    
-    for key in res:
-        if type(res[key]) is list:
-            res[key].sort()
-            print("{}(SUM): {}".format(key, sum(res[key]) / len(res[key])))
-        print("{}: {}".format(key, res[key]))
-        
