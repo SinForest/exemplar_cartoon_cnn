@@ -21,7 +21,7 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
 from keras import backend as K
 
-DEBUG = "data"
+DEBUG = "model"
 #np.random.seed(1338) # for debugging
 
 def create_model(input_shape, nb_classes):
@@ -129,7 +129,7 @@ def generate_data(path, max_side=192, crop_size=64, nb_samples=100, zoom_lower =
             
             samples.append(sample)
             
-                
+            
             # debug
             continue
             print(hue)
@@ -149,7 +149,7 @@ if __name__ == "__main__":
     
     if DEBUG == "model":
         nb_c = 585
-        w_h = 32
+        w_h = 64
         
         net = create_model((3, w_h, w_h), nb_c)
         net.compile(loss='categorical_crossentropy',
