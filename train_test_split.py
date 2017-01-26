@@ -11,7 +11,7 @@ import random
 import itertools
 import pickle
 
-from skimage.io import imread, imshow, imsave
+from skimage.io import imread, imsave
 
 
 def get_images(path="/home/cobalt/deepvis/project/toon/Annotations"):
@@ -70,7 +70,34 @@ def extract_classes(data, asSet=False):
                 
 
 def extract_training_pairs(data, count=None):
-    pass
+    pairs    = []
+    random.shuffle(data)
+    
+    for i in range(len(data)):
+        if count != None and count < 0:
+            break # when enough test samples are made
+
+        img =  data[i]["file"]
+        # crop bboxes
+        for box in data[i]["boxes"]:
+            x0 = box["xmin"]
+            y0 = box["ymin"]
+            x1 = box["xmax"]
+            y1 = box["ymax"] 
+            crop = img[y0:y1, x0:x1, :]
+            if crop.shape[0] == 0 or crop.shape[1] == 0:
+                continue
+            pairs.append((crop, box["name"])) # X/y pairs
+            if count != None:
+                count -= 1
+        data[i] = None
+
+    # delete entries of test images
+    data = [x for x in data if x != None]
+    if count != None:
+        return pairs, data
+    else:
+        return pairs
     
     
 
@@ -102,29 +129,9 @@ def train_test_split(data, test_count, N=1000, path="/home/cobalt/deepvis/projec
         
         # initialize iteration
         classes = extract_classes(data, asSet=True)
-        count   = test_count
         train   = data[:]
-        test    = []
-        random.shuffle(train)
         
-        for i in range(len(train)):
-            if count < 0:
-                break # when enough test samples are made
-
-            img =  train[i]["file"]
-            # crop bboxes
-            for box in train[i]["boxes"]:
-                x0 = box["xmin"]
-                y0 = box["ymin"]
-                x1 = box["xmax"]
-                y1 = box["ymax"] 
-                crop = img[y0:y1, x0:x1, :]
-                test.append((crop, box["name"])) # X/y pairs
-                count -= 1
-            train[i] = None
-
-        # delete entries of test images
-        train = [x for x in train if x != None] 
+        test, train = extract_training_pairs(train, test_count)
         
         #if train == best_distribution[0] or test == best_distribution[1]:
             #print("Equality in iter {}".format(step))
@@ -148,21 +155,22 @@ def train_test_split(data, test_count, N=1000, path="/home/cobalt/deepvis/projec
             better_counter += 1
     
     #create validation set (like testset with training images)
+    val = train[:]
+    val = extract_training_pairs(val)
     
     if __name__ == "__main__": print("Skipped:", skip_counter)
     if __name__ == "__main__": print("Better:", better_counter)
-    return [item["file"] for item in best_distribution[0]], best_distribution[1], score
+    return [item["file"] for item in best_distribution[0]], best_distribution[1], val, score
         
 def extract_pickle_set(filename, path="/home/cobalt/deepvis/project/toon/my_sets"):
     file = os.path.join(path, filename)
-    for fol in ["train", "test"]:
+    for fol in ["train", "test", "val"]:
         tmp = os.path.join(path, fol)
-        print(tmp)
         if not os.path.isdir(tmp):
             os.makedirs(tmp)
             
-    train, test = pickle.load(open(file, "rb"))
-    print("Train:", len(train), "Test:", len(test))
+    train, test, val = pickle.load(open(file, "rb"))
+    print("Train:", len(train), "Test:", len(test), "Val:", len(val))
     
     i = 0
     for img in train:
@@ -171,15 +179,27 @@ def extract_pickle_set(filename, path="/home/cobalt/deepvis/project/toon/my_sets
         i += 1
         
     i = 0
+    txt = open(os.path.join(path, "test.txt"), "w")
     for Xy in test:
         file = os.path.join(path, "test", "test_{:03d}.bmp".format(i))
         imsave(file, Xy[0])
+        txt.write("test_{:03d}.bmp\t{}\n".format(i, Xy[1]))
         i += 1
+    txt.close()
+    
+    i = 0
+    txt = open(os.path.join(path, "val.txt"), "w")
+    for Xy in val:
+        file = os.path.join(path, "val", "val_{:03d}.bmp".format(i))
+        imsave(file, Xy[0])
+        txt.write("val_{:03d}.bmp\t{}\n".format(i, Xy[1]))
+        i += 1
+    txt.close()
         
     
 if __name__ == "__main__":
     imgs = get_images()
-    train, test, score = train_test_split(imgs, 150, N=50000)
+    train, test, val, score = train_test_split(imgs, 150, N=50000)
     test_classes = [x[1] for x in test]
     print("Score:", score)
     print("Classes:", len(test_classes))
@@ -187,5 +207,5 @@ if __name__ == "__main__":
     for cl in set(test_classes):
         print(cl, "\t:\t", test_classes.count(cl))
         
-    print("Train:", len(train), "Test:", len(test))
-    pickle.dump((train, test), open("/home/cobalt/deepvis/project/toon/best_distr_{:.2f}.p".format(score), "wb"))
+    print("Train:", len(train), "Test:", len(test), "Val:", len(val))
+    pickle.dump((train, test, val), open("/home/cobalt/deepvis/project/toon/best_distr_{:.2f}.p".format(score), "wb"))

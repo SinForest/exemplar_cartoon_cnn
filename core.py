@@ -21,7 +21,7 @@ from keras.layers import Convolution2D, MaxPooling2D
 from keras.utils import np_utils
 from keras import backend as K
 
-DEBUG = "model"
+DEBUG = "data"
 #np.random.seed(1338) # for debugging
 
 def create_model(input_shape, nb_classes):
@@ -53,10 +53,12 @@ def dim_ordering_th(A):
     else:
         raise ValueError("needs to be in tf-ordering")
     
-def generate_data(path, max_side=192, crop_size=64, nb_samples=100, zoom_lower = 0.7,
+def generate_data(data, max_side=192, crop_size=64, nb_samples=200, zoom_lower = 0.7,
                   zoom_upper = 1.4, rotation = 20, stretch = 0.15, contrast = (1.5, 1.4, 0.1),
                   color = 0.05, outpath=None):
     
+    # old approach:
+    """
     for filename in os.listdir(path):
         if filename[0] == ".":
             continue
@@ -65,6 +67,14 @@ def generate_data(path, max_side=192, crop_size=64, nb_samples=100, zoom_lower =
         if not os.path.isfile(file):
             continue
         img  = imread(file)
+    """
+    
+    pairs = []
+    surrogate_class = 0
+    
+    for img in data:
+        
+        print("### Generating Surrogate Class {} of {} ###".format(surrogate_class + 1, len(data)))
         
         # calculate resize factor (= factor to scale image, so largest side has size 128)
         re_fac = max_side / max(img.shape[0], img.shape[1])
@@ -72,7 +82,6 @@ def generate_data(path, max_side=192, crop_size=64, nb_samples=100, zoom_lower =
             raise RuntimeError("can't crop on image {}\nSize: {}, re_fac:{}, crop_size:{}"
                                .format(filename, img.shape, re_fac, crop_size))
         
-        samples = []
         # generate samples
         for i in range(nb_samples):
             
@@ -127,22 +136,33 @@ def generate_data(path, max_side=192, crop_size=64, nb_samples=100, zoom_lower =
             # convert back to RGB
             sample = hsv2rgb(sample)
             
-            samples.append(sample)
-            
+            pairs.append((sample, surrogate_class))
             
             # debug
             continue
-            print(hue)
             imshow(sample)
             return
         
-        plt.figure(figsize=(20, 20), dpi=80)
-        for i in range(nb_samples):
-            plt.subplot(10,10,i+1)
-            plt.axis('off')
-            plt.imshow(samples[i])
-        plt.savefig("batches.png")
-        return
+        # end for i in range(nb_samples) 
+        
+        surrogate_class += 1
+    
+    # end for img in data
+    
+    return pairs
+        
+    # plotting for debug
+    """
+    plt.figure(figsize=(20, 20), dpi=80)
+    for i in range(nb_samples):
+        plt.subplot(10,10,i+1)
+        plt.axis('off')
+        plt.imshow(samples[i])
+    plt.savefig("batches.png")
+    return
+    """
+    
+        
 
 
 if __name__ == "__main__":
