@@ -8,50 +8,25 @@ Created on Tue Jan 24 18:44:02 2017
 
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 
 from skimage.io import imread, imshow
 from skimage.transform import resize, rotate
 from skimage.color import rgb2hsv, hsv2rgb
+from skimage.exposure import is_low_contrast
 
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Flatten
-from keras.layers.advanced_activations import PReLU
-from keras.layers import Convolution2D, MaxPooling2D
-from keras.utils import np_utils
-from keras import backend as K
 
 DEBUG = "data"
 #np.random.seed(1338) # for debugging
-
-def create_model(input_shape, nb_classes):
-    model = Sequential()
-    
-    model.add(Convolution2D(64, 5, 5, border_mode='same', input_shape=input_shape))
-    model.add(PReLU())
-    model.add(MaxPooling2D(pool_size=(2,2)))
-    
-    model.add(Convolution2D(128, 5, 5))
-    model.add(PReLU())
-    model.add(MaxPooling2D(pool_size=(2,2)))
-    
-    model.add(Convolution2D(256, 5, 5))
-    model.add(PReLU())
-    
-    model.add(Flatten())
-    model.add(Dense(512))
-    model.add(PReLU())
-    model.add(Dropout(0.5))
-    
-    model.add(Dense(nb_classes))
-    model.add(Activation('softmax'))
-    return model
     
 def dim_ordering_th(A):
     if A.shape[0] in [1,3]:
         return np.swapaxes(np.swapaxes(A, 1, 3), 2, 3)
     else:
         raise ValueError("needs to be in tf-ordering")
+
+def train_exemplar_cnn(train, test, val):
+    #train = zip()
+    pass
     
 def generate_data(data, max_side=192, crop_size=64, nb_samples=200, zoom_lower = 0.7,
                   zoom_upper = 1.4, rotation = 20, stretch = 0.15, contrast = (1.5, 1.4, 0.1),
@@ -79,8 +54,8 @@ def generate_data(data, max_side=192, crop_size=64, nb_samples=200, zoom_lower =
         # calculate resize factor (= factor to scale image, so largest side has size 128)
         re_fac = max_side / max(img.shape[0], img.shape[1])
         if crop_size / re_fac > min(img.shape[0], img.shape[1]):
-            raise RuntimeError("can't crop on image {}\nSize: {}, re_fac:{}, crop_size:{}"
-                               .format(filename, img.shape, re_fac, crop_size))
+            raise RuntimeError("can't crop on image\nSize: {}, re_fac:{}, crop_size:{}"
+                               .format(img.shape, re_fac, crop_size))
         
         # generate samples
         for i in range(nb_samples):
@@ -136,7 +111,9 @@ def generate_data(data, max_side=192, crop_size=64, nb_samples=200, zoom_lower =
             # convert back to RGB
             sample = hsv2rgb(sample)
             
-            pairs.append((sample, surrogate_class))
+            #discard images with low contrast
+            if not is_low_contrast(sample):
+                pairs.append((sample, surrogate_class))
             
             # debug
             continue
@@ -166,16 +143,6 @@ def generate_data(data, max_side=192, crop_size=64, nb_samples=200, zoom_lower =
 
 
 if __name__ == "__main__":
-    
-    if DEBUG == "model":
-        nb_c = 585
-        w_h = 64
-        
-        net = create_model((3, w_h, w_h), nb_c)
-        net.compile(loss='categorical_crossentropy',
-                  optimizer='adadelta',
-                  metrics=['accuracy'])
-        net.summary()
         
     if DEBUG == "data":
         generate_data("/home/cobalt/deepvis/project/toon/JPEGImages")

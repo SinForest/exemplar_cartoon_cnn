@@ -24,6 +24,8 @@ if __name__ == "__main__":
         train, test, val, score = train_test_split(imgs, 150, N=50000)
     
     pairs = generate_data(train)
+
+        
     
     """
     i = 0
@@ -36,9 +38,7 @@ if __name__ == "__main__":
     txt.close()
     """
     
-    
+    print("### Pickling Surrogate Classes ###")
     pickle.dump(pairs, open(os.path.join(path, "surrogate.p"), "wb"))
-    
-    bad_surro  = [x for x in pairs if is_low_contrast(x[0])]
-    good_surro = pairs - bad_surro
+    print("### Finished Pickling ###")
     
