@@ -11,7 +11,7 @@ import random
 import itertools
 import pickle
 
-from skimage.io import imread, imshow
+from skimage.io import imread, imshow, imsave
 
 
 def get_images(path="/home/cobalt/deepvis/project/toon/Annotations"):
@@ -68,6 +68,11 @@ def extract_classes(data, asSet=False):
           ]
     return set(res) if asSet else res
                 
+
+def extract_training_pairs(data, count=None):
+    pass
+    
+    
 
 def train_test_split(data, test_count, N=1000, path="/home/cobalt/deepvis/project/toon/JPEGImages"):
     """
@@ -142,11 +147,35 @@ def train_test_split(data, test_count, N=1000, path="/home/cobalt/deepvis/projec
             best_distribution = (train, test)
             better_counter += 1
     
+    #create validation set (like testset with training images)
+    
     if __name__ == "__main__": print("Skipped:", skip_counter)
     if __name__ == "__main__": print("Better:", better_counter)
     return [item["file"] for item in best_distribution[0]], best_distribution[1], score
         
+def extract_pickle_set(filename, path="/home/cobalt/deepvis/project/toon/my_sets"):
+    file = os.path.join(path, filename)
+    for fol in ["train", "test"]:
+        tmp = os.path.join(path, fol)
+        print(tmp)
+        if not os.path.isdir(tmp):
+            os.makedirs(tmp)
+            
+    train, test = pickle.load(open(file, "rb"))
+    print("Train:", len(train), "Test:", len(test))
     
+    i = 0
+    for img in train:
+        file = os.path.join(path, "train", "train_{:03d}.bmp".format(i))
+        imsave(file, img)
+        i += 1
+        
+    i = 0
+    for Xy in test:
+        file = os.path.join(path, "test", "test_{:03d}.bmp".format(i))
+        imsave(file, Xy[0])
+        i += 1
+        
     
 if __name__ == "__main__":
     imgs = get_images()
