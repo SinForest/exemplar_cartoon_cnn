@@ -7,6 +7,8 @@ Created on Tue Jan 24 18:44:02 2017
 """
 
 import os
+import h5py
+import time
 import numpy as np
 
 from skimage.io import imread, imshow
@@ -14,15 +16,23 @@ from skimage.transform import resize, rotate
 from skimage.color import rgb2hsv, hsv2rgb
 from skimage.exposure import is_low_contrast
 
+from keras import backend as K
+
 
 DEBUG = "data"
 #np.random.seed(1338) # for debugging
     
 def dim_ordering_th(A):
-    if A.shape[0] in [1,3]:
-        return np.swapaxes(np.swapaxes(A, 1, 3), 2, 3)
+    if A.shape[2] in [1,3]:
+        return np.swapaxes(np.swapaxes(A, 0, 2), 1, 2)
     else:
         raise ValueError("needs to be in tf-ordering")
+
+def dim_ordering_tf(A):
+    if A.shape[0] in [1,3]:
+        return np.swapaxes(np.swapaxes(A, 0, 1), 1, 2)
+    else:
+        raise ValueError("needs to be in th-ordering")
 
 def train_exemplar_cnn(train, test, val):
     #train = zip()
@@ -30,7 +40,7 @@ def train_exemplar_cnn(train, test, val):
     
 def generate_data(data, max_side=192, crop_size=64, nb_samples=200, zoom_lower = 0.7,
                   zoom_upper = 1.4, rotation = 20, stretch = 0.15, contrast = (1.5, 1.4, 0.1),
-                  color = 0.05, outpath=None):
+                  color = 0.05, hdf5=None):
     
     # old approach:
     """
@@ -43,13 +53,21 @@ def generate_data(data, max_side=192, crop_size=64, nb_samples=200, zoom_lower =
             continue
         img  = imread(file)
     """
-    
-    pairs = []
-    surrogate_class = 0
+    if hdf5 == None:
+        pairs    = []
+    else:
+        h5file   = h5py.File(hdf5, 'x') # this will fail if file exists
+        h5pairs  = h5file.create_dataset("samples", (nb_samples * len(data), 3, crop_size, crop_size))
+        h5labels = h5file.create_dataset("labels", (nb_samples * len(data), 2)) # labels getting indices for easier shuffeling
+        
+    surrogate_class = 1 # begin with 1, so everything with class 0 is empty data
+    i_sample = 0
+    clock = time.clock()
+    ete = float("inf")
     
     for img in data:
         
-        print("### Generating Surrogate Class {} of {} ###".format(surrogate_class + 1, len(data)))
+        print("### Generating Surrogate Class {} of {}  [ETE:{:.1f}m]###".format(surrogate_class, len(data), ete))
         
         # calculate resize factor (= factor to scale image, so largest side has size 128)
         re_fac = max_side / max(img.shape[0], img.shape[1])
@@ -111,9 +129,23 @@ def generate_data(data, max_side=192, crop_size=64, nb_samples=200, zoom_lower =
             # convert back to RGB
             sample = hsv2rgb(sample)
             
-            #discard images with low contrast
-            if not is_low_contrast(sample):
+            # discard images with low contrast
+            if is_low_contrast(sample):
+                continue
+            
+            # change dim ordering if needed
+            if K.image_dim_ordering() == 'th':
+                sample = dim_ordering_th(sample)
+            
+            # save depending on save-method
+            if hdf5 == None:
                 pairs.append((sample, surrogate_class))
+            else:
+                h5pairs[i_sample,:,:,:] = sample
+                h5labels[i_sample,0] = surrogate_class
+                h5labels[i_sample,1] = i_sample # labels getting indices for easier shuffeling (²)
+            i_sample += 1
+            
             
             # debug
             continue
@@ -122,11 +154,19 @@ def generate_data(data, max_side=192, crop_size=64, nb_samples=200, zoom_lower =
         
         # end for i in range(nb_samples) 
         
+        ete = ((time.clock() - clock) / surrogate_class) * (len(data) - surrogate_class) / 60
         surrogate_class += 1
     
     # end for img in data
     
-    return pairs
+    
+    if hdf5 == None:
+        return pairs
+    else:
+        #h5pairs.resize(i_sample)
+        #h5labels.resize(i_sample)
+        return h5file
+    
         
     # plotting for debug
     """
