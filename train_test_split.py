@@ -16,6 +16,7 @@ from skimage.io import imread, imsave
 
 def get_images(path="/home/cobalt/deepvis/project/toon/Annotations"):
     """
+    scans all xml files in folder
     returns list of dicts
         each dict has
         ["file"] with filename
@@ -42,7 +43,7 @@ def get_images(path="/home/cobalt/deepvis/project/toon/Annotations"):
             continue
         d = {}
         d["file"] = match.group(1)
-        
+
         try:
             it = re.finditer("<object>[\w\W]*?<\/object>", xml)
             d["boxes"] = []
@@ -56,23 +57,23 @@ def get_images(path="/home/cobalt/deepvis/project/toon/Annotations"):
                 d["boxes"].append(tmp)
         except:
             print("Error at file {}: attributes not found".format(filename))
-        
+
         res.append(d)
-            
+
     return res
-    
+
 def extract_classes(data, asSet=False):
-    res = [box["name"] for box in 
+    res = [box["name"] for box in
            itertools.chain.from_iterable(
            [image["boxes"] for image in data])
           ]
     return set(res) if asSet else res
-                
+
 
 def extract_training_pairs(data, count=None):
     pairs    = []
     random.shuffle(data)
-    
+
     for i in range(len(data)):
         if count != None and count < 0:
             break # when enough test samples are made
@@ -83,7 +84,7 @@ def extract_training_pairs(data, count=None):
             x0 = box["xmin"]
             y0 = box["ymin"]
             x1 = box["xmax"]
-            y1 = box["ymax"] 
+            y1 = box["ymax"]
             crop = img[y0:y1, x0:x1, :]
             if crop.shape[0] == 0 or crop.shape[1] == 0:
                 continue
@@ -98,8 +99,8 @@ def extract_training_pairs(data, count=None):
         return pairs, data
     else:
         return pairs
-    
-    
+
+
 
 def train_test_split(data, test_count, N=1000, path="/home/cobalt/deepvis/project/toon/JPEGImages"):
     """
@@ -107,32 +108,32 @@ def train_test_split(data, test_count, N=1000, path="/home/cobalt/deepvis/projec
         train: list of filenames for training
         test : list of bounding-box crops as np-Arrays
     """
-    
+
     # initialize
     best_score        = 2
     best_distribution = (None, None)
     skip_counter = 0
     better_counter = 0
-    
+
     # load images, clean data from 404s
     for i in range(len(data)):
         try:
             data[i]["file"] = imread(os.path.join(path, data[i]["file"]))
         except FileNotFoundError:
                 data[i] = None
-    data = [x for x in data if x != None]    
+    data = [x for x in data if x != None]
 
     # make N iterations: brute-force-approach
-    for step in range(N): 
+    for step in range(N):
         if step % 100 == 0 and __name__ == "__main__":
             print("Iter #{}".format(step))
-        
+
         # initialize iteration
         classes = extract_classes(data, asSet=True)
         train   = data[:]
-        
+
         test, train = extract_training_pairs(train, test_count)
-        
+
         #if train == best_distribution[0] or test == best_distribution[1]:
             #print("Equality in iter {}".format(step))
         # calculate scores
@@ -148,36 +149,36 @@ def train_test_split(data, test_count, N=1000, path="/home/cobalt/deepvis/projec
             score = 2
             skip_counter += 1
             print([cl for cl in classes if cl in test_classes])
-                
+
         if score < best_score:
             best_score = score
             best_distribution = (train, test)
             better_counter += 1
-    
+
     #create validation set (like testset with training images)
     val = train[:]
     val = extract_training_pairs(val)
-    
+
     if __name__ == "__main__": print("Skipped:", skip_counter)
     if __name__ == "__main__": print("Better:", better_counter)
     return [item["file"] for item in best_distribution[0]], best_distribution[1], val, score
-        
+
 def extract_pickle_set(filename, path="/home/cobalt/deepvis/project/toon/my_sets"):
     file = os.path.join(path, filename)
     for fol in ["train", "test", "val"]:
         tmp = os.path.join(path, fol)
         if not os.path.isdir(tmp):
             os.makedirs(tmp)
-            
+
     train, test, val = pickle.load(open(file, "rb"))
     print("Train:", len(train), "Test:", len(test), "Val:", len(val))
-    
+
     i = 0
     for img in train:
         file = os.path.join(path, "train", "train_{:03d}.bmp".format(i))
         imsave(file, img)
         i += 1
-        
+
     i = 0
     txt = open(os.path.join(path, "test.txt"), "w")
     for Xy in test:
@@ -186,7 +187,7 @@ def extract_pickle_set(filename, path="/home/cobalt/deepvis/project/toon/my_sets
         txt.write("test_{:03d}.bmp\t{}\n".format(i, Xy[1]))
         i += 1
     txt.close()
-    
+
     i = 0
     txt = open(os.path.join(path, "val.txt"), "w")
     for Xy in val:
@@ -195,8 +196,8 @@ def extract_pickle_set(filename, path="/home/cobalt/deepvis/project/toon/my_sets
         txt.write("val_{:03d}.bmp\t{}\n".format(i, Xy[1]))
         i += 1
     txt.close()
-        
-    
+
+
 if __name__ == "__main__":
     imgs = get_images()
     train, test, val, score = train_test_split(imgs, 150, N=50000)
@@ -206,6 +207,6 @@ if __name__ == "__main__":
     print("Set:", len(set(test_classes)))
     for cl in set(test_classes):
         print(cl, "\t:\t", test_classes.count(cl))
-        
+
     print("Train:", len(train), "Test:", len(test), "Val:", len(val))
     pickle.dump((train, test, val), open("/home/cobalt/deepvis/project/toon/best_distr_{:.2f}.p".format(score), "wb"))
