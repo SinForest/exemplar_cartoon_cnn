@@ -13,7 +13,9 @@ import random
 
 from skimage.exposure import is_low_contrast
 
+from keras.callbacks import ModelCheckpoint
 from keras.utils import np_utils
+from keras import backend as K
 
 from core import generate_data
 from train_test_split import get_images, train_test_split
@@ -26,12 +28,31 @@ batch_size = 256
 
 # ----------------------------------------------
 
+def generate_batches(h5, labels, batch_size):
+    """
+    generator for loading data from hdf5 file
+    labels is list of tuples (label, index in hdf5)
+    h5     is hdf5 file containing X_train in ["samples"]
+    """
+    i = 0  # batch-position in dataset
+    while True:
+        # get batch images (sorting b.c. hdf5 wants sorted indices)
+        current = sorted(labels[i:i+batch_size], key=lambda x:x[1])
+        ind     = [x[1] for x in current]
+        X_train = h5['samples'][ind]
+        Y_train = np.array([x[0] for x in current])
+        yield (X_train, Y_train)
+        i += batch_size
+        if i >= len(labels):
+            i = 0
+            random.shuffle(labels)
+
 
 if __name__ == "__main__":
-    
+
     path="/home/cobalt/deepvis/project/toon/my_sets"
     h5path = os.path.join(path, "surrogate.hdf5")
-    
+
     if os.path.isfile(h5path):
         h5 = h5py.File(h5path, 'r')
     else:
@@ -40,30 +61,30 @@ if __name__ == "__main__":
         else:
             imgs = get_images()
             train, test, val, score = train_test_split(imgs, 150, N=50000)
-        
+
         h5 = generate_data(train, hdf5=h5path)
 
-        
+
     #TODO: Put everything from here on in a function getting model, epochs, batch_size, hdf5)
-        
+
     labels = h5['labels'][()] # read labels, discard emptys
     labels = labels[ labels[:,0] != 0 ]
     cat = np_utils.to_categorical(labels[:,0])
     nb_classes = cat.shape[1]
     print("nb_classes: {}".format(nb_classes))
     labels = list(zip(cat, list(labels[:,1])))
-    
+
     # labels := list of all labels (and image indices for easy shuffeling)
     #   item[0] := categorical label vector
     #   item[1] := corresponding index of image
-    
+
     network = create_model((3, 64, 64), nb_classes)
     network.compile(loss      = 'categorical_crossentropy',
                     optimizer = 'adadelta',
                     metrics   =['accuracy'])
-    
+    checkpointer = ModelCheckpoint(filepath=os.path.join(path, "weights-{epoch:02d}.hdf5"),
+                                   verbose=1, save_best_only=True)
     #initializing
-    i       = 0  # batch-position in dataset
     epochs  = 0
     history = {
                'loss': [],
@@ -72,46 +93,35 @@ if __name__ == "__main__":
                'val_acc': []
               }
     random.shuffle(labels)
-    
+
     #training
     while(epochs < 2):
-        
-        # get batch images (sorting b.c. hdf5 wants sorted indices)
-        current = sorted(labels[i:i+batch_size], key=lambda x:x[1])
-        ind     = [x[1] for x in current]
-        X_train = h5['samples'][ind] # TODO: doing this in parallel? look into generators! (maybe one epuch via fit_generator)
-        Y_train = np.array([x[0] for x in current])
-        # raise RuntimeError("lol") # DEBUG!
-        hist = network.train_on_batch(X_train, Y_train)
-        history['loss'].append(float(hist[0]))
-        history['acc'].append(float(hist[1]))
-        i += batch_size
-        if i >= len(labels):
-            i = 0
-            epochs += 1
-            random.shuffle(labels)
-            print("Trained epoch #{}".format(epochs)) #TODO: colored output? :)
-            #TODO: SVM validation
-        print("Trained one batch") #TODO: better verbosity
+
+        hist = network.fit_generator(generate_batches(h5, labels, batch_size),
+                                     samples_per_epoch=len(labels),nb_epoch=1)
+        epochs += 1
+        print("Trained epoch #{}".format(epochs)) #TODO: colored output? :)
+        #TODO: SVM validation
+        # print("Trained one batch") #TODO: better verbosity
 
 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     """
     i = 0
     txt = open(os.path.join(path, "surrogate.txt"), "w")
@@ -123,5 +133,4 @@ if __name__ == "__main__":
     txt.close()
     """
 
-    
-    
+
