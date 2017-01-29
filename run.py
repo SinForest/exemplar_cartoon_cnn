@@ -11,13 +11,11 @@ import pickle
 import numpy as np
 import random
 
-from skimage.exposure import is_low_contrast
-
 from keras.callbacks import ModelCheckpoint
 from keras.utils import np_utils
 from keras import backend as K
 
-from core import generate_data, resize_all, dim_ordering_th
+from core import generate_data, resize_all, dim_ordering_th, generate_batches
 from train_test_split import get_images, train_test_split
 from exemplar_model import create_model
 from svm_val import SVM_Validation
@@ -29,26 +27,6 @@ batch_size = 256
 inp_size = 64
 
 # ----------------------------------------------
-
-def generate_batches(h5, labels, batch_size):
-    """
-    generator for loading data from hdf5 file
-    labels is list of tuples (label, index in hdf5)
-    h5     is hdf5 file containing X_train in ["samples"]
-    """
-    i = 0  # batch-position in dataset
-    random.shuffle(labels)
-    while True:
-        # get batch images (sorting b.c. hdf5 wants sorted indices)
-        current = sorted(labels[i:i+batch_size], key=lambda x:x[1])
-        ind     = [x[1] for x in current]
-        X_train = h5['samples'][ind]
-        Y_train = np.array([x[0] for x in current])
-        yield (X_train, Y_train)
-        i += batch_size
-        if i >= len(labels):
-            i = 0
-            random.shuffle(labels)
 
 def string_categorical(val, test):
     """
@@ -90,7 +68,6 @@ if __name__ == "__main__":
     labels = labels[ labels[:,0] != 0 ]
     cat = np_utils.to_categorical(labels[:,0])
     nb_classes = cat.shape[1]
-    print("nb_classes: {}".format(nb_classes))
     labels = list(zip(cat, list(labels[:,1])))
 
     # labels := list of all labels (and image indices for easy shuffeling)
@@ -119,10 +96,6 @@ if __name__ == "__main__":
                                  samples_per_epoch=len(labels),nb_epoch=max_epochs,
                                  callbacks=[mcp, svmv])
 
-
-
-
-
     """
     i = 0
     txt = open(os.path.join(path, "surrogate.txt"), "w")
@@ -133,5 +106,3 @@ if __name__ == "__main__":
         i += 1
     txt.close()
     """
-
-

@@ -9,9 +9,10 @@ Created on Tue Jan 24 18:44:02 2017
 import os
 import h5py
 import time
+import random
 import numpy as np
 
-from skimage.io import imread, imshow
+from skimage.io import imshow
 from skimage.transform import resize, rotate
 from skimage.color import rgb2hsv, hsv2rgb
 from skimage.exposure import is_low_contrast
@@ -21,6 +22,26 @@ from keras import backend as K
 
 DEBUG = "data"
 #np.random.seed(1338) # for debugging
+
+def generate_batches(h5, labels, batch_size):
+    """
+    GENERATOR for loading data from hdf5 file
+    labels is list of tuples (label, index in hdf5)
+    h5     is hdf5 file containing X_train in ["samples"]
+    """
+    i = 0  # batch-position in dataset
+    random.shuffle(labels)
+    while True:
+        # get batch images (sorting b.c. hdf5 wants sorted indices)
+        current = sorted(labels[i:i+batch_size], key=lambda x:x[1])
+        ind     = [x[1] for x in current]
+        X_train = h5['samples'][ind]
+        Y_train = np.array([x[0] for x in current])
+        yield (X_train, Y_train)
+        i += batch_size
+        if i >= len(labels):
+            i = 0
+            random.shuffle(labels)
 
 def dim_ordering_th(A):
     if A.shape[2] in [1,3]:
@@ -43,7 +64,6 @@ def resize_all(X, size):
     for img in X:
         res.append(resize(img, (size, size)))
     return np.array(res)
-
 
 
 def generate_data(data, max_side=192, crop_size=64, nb_samples=200, zoom_lower = 0.7,
