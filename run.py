@@ -9,7 +9,6 @@ import os
 import h5py
 import pickle
 import numpy as np
-import random
 
 from keras.callbacks import ModelCheckpoint
 from keras.utils import np_utils
@@ -22,7 +21,7 @@ from svm_val import SVM_Validation
 
 # PARAMETERS for making this a FUNCTION later on
 
-max_epochs = 5
+max_epochs = 20
 batch_size = 256
 inp_size = 64
 
@@ -81,28 +80,9 @@ if __name__ == "__main__":
     mcp  = ModelCheckpoint(filepath=os.path.join(path, "weights-{epoch:02d}.hdf5"),
                           verbose=1, save_best_only=False)
     svmv = SVM_Validation(X_val, Y_val, X_test, Y_test, 128)
-    #initializing
-    history = {
-               'loss': [],
-               'val_loss': [],
-               'acc': [],
-               'val_acc': []
-              }
-    random.shuffle(labels)
 
     #training
 
     hist = network.fit_generator(generate_batches(h5, labels, batch_size),
                                  samples_per_epoch=len(labels),nb_epoch=max_epochs,
                                  callbacks=[mcp, svmv])
-
-    """
-    i = 0
-    txt = open(os.path.join(path, "surrogate.txt"), "w")
-    for Xy in pairs:
-        file = os.path.join(path, "surrogate", "surrogate_{:03d}.bmp".format(i))
-        imsave(file, Xy[0])
-        txt.write("surrogate_{:03d}.bmp\t{}\n".format(i, Xy[1]))
-        i += 1
-    txt.close()
-    """

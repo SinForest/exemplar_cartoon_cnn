@@ -164,6 +164,10 @@ def train_test_split(data, test_count, N=1000, path="/home/cobalt/deepvis/projec
     return [item["file"] for item in best_distribution[0]], best_distribution[1], val, score
 
 def extract_pickle_set(filename, path="/home/cobalt/deepvis/project/toon/my_sets"):
+    """
+    This is only to peek into the sets.
+    I don't really use this for anything..
+    """
     file = os.path.join(path, filename)
     for fol in ["train", "test", "val"]:
         tmp = os.path.join(path, fol)

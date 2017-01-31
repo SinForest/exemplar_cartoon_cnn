@@ -43,7 +43,6 @@ class SVM_Validation(Callback):
         return
 
     def on_epoch_end(self, epoch, logs={}):
-        print("### Forward Pass Data ###")
         i = 0
         F_val = []
         while i < len(self.X_val):
@@ -54,10 +53,8 @@ class SVM_Validation(Callback):
         while i < len(self.X_test):
             F_test.extend(list(self.get_representation(self.X_test[i:i+self.batch_size])[0]))
             i += self.batch_size
-        print("### Training SVM ###")
         svm = SVC()
         svm.fit(F_val, self.Y_val)
-        print("### Testing SVM ###")
         acc = svm.score(F_test, self.Y_test)
         print("Achieved SVM-Accuracy: {}".format(acc))
         #TODO: add to models val_loss (and turn save_best_only on again)
