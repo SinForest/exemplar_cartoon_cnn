@@ -34,6 +34,7 @@ class SVM_Validation(Callback):
         return representation
 
     def on_train_begin(self, logs={}):
+        self.my_log = []
         return
 
     def on_train_end(self, logs={}):
@@ -57,6 +58,7 @@ class SVM_Validation(Callback):
         svm.fit(F_val, self.Y_val)
         acc = svm.score(F_test, self.Y_test)
         print("Achieved SVM-Accuracy: {}".format(acc))
+        self.my_log.append(acc)
         #TODO: add to models val_loss (and turn save_best_only on again)
         return
 
